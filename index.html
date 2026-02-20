@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI SuperBox</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* === CSS VARIABLES & THEMING === */
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass-bg: rgba(30, 41, 59, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #0ea5e9;
+            --accent-hover: #0284c7;
+            --sidebar-bg: rgba(15, 23, 42, 0.8);
+            --chat-user: #0ea5e9;
+            --chat-ai: rgba(51, 65, 85, 0.8);
+        }
+
+        body.light-mode {
+            --bg-gradient: linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%);
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --accent-color: #0284c7;
+            --accent-hover: #0369a1;
+            --sidebar-bg: rgba(241, 245, 249, 0.8);
+            --chat-user: #0284c7;
+            --chat-ai: rgba(255, 255, 255, 0.9);
+        }
+
+        /* === GLOBAL STYLES === */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            transition: all 0.3s ease;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        /* === LOGIN/SIGNUP MODAL === */
+        #auth-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .auth-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            border-radius: 16px;
+            width: 350px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .auth-card h2 { margin-bottom: 20px; color: var(--text-primary); }
+        .auth-card input {
+            width: 100%; padding: 12px; margin-bottom: 15px;
+            border-radius: 8px; border: 1px solid var(--glass-border);
+            background: rgba(255,255,255,0.05); color: var(--text-primary);
+        }
+        .auth-btn {
+            width: 100%; padding: 12px; border-radius: 8px;
+            background: var(--accent-color); color: white;
+            font-weight: bold; font-size: 16px;
+        }
+        .auth-btn:hover { background: var(--accent-hover); }
+
+        /* === LAYOUT & SIDEBAR === */
+        #app-container {
+            display: none; /* Hidden until login */
+            width: 100%;
+            height: 100%;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .logo-area {
+            font-size: 20px; font-weight: bold; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .new-chat-btn {
+            background: var(--accent-color);
+            color: white; padding: 12px; border-radius: 8px;
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 500; margin-bottom: 20px;
+        }
+        .new-chat-btn:hover { background: var(--accent-hover); transform: translateY(-2px); }
+
+        .model-selector {
+            margin-bottom: 20px;
+        }
+        .model-selector select {
+            width: 100%; padding: 10px; border-radius: 8px;
+            background: var(--glass-bg); color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+        }
+
+        .chat-history {
+            flex: 1; overflow-y: auto;
+        }
+        .history-item {
+            padding: 10px; border-radius: 8px; margin-bottom: 5px;
+            cursor: pointer; color: var(--text-secondary);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .history-item:hover { background: var(--glass-bg); color: var(--text-primary); }
+
+        /* === MAIN CONTENT AREA === */
+        .main-content {
+            flex: 1; display: flex; flex-direction: column;
+            position: relative;
+        }
+
+        header {
+            padding: 20px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .tabs button {
+            background: transparent; color: var(--text-secondary);
+            padding: 10px 20px; font-size: 16px; border-radius: 20px;
+            font-weight: bold; margin-right: 10px;
+        }
+        .tabs button.active {
+            background: var(--glass-bg); color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+        }
+        .header-actions button {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            color: var(--text-primary); width: 40px; height: 40px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        }
+
+        /* === CHAT SYSTEM === */
+        #chat-view {
+            flex: 1; display: flex; flex-direction: column; padding: 20px;
+            max-width: 900px; margin: 0 auto; width: 100%;
+        }
+
+        .chat-box {
+            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;
+            padding-bottom: 20px;
+        }
+
+        .message {
+            max-width: 80%; padding: 15px; border-radius: 12px;
+            line-height: 1.5; animation: fadeIn 0.3s ease;
+        }
+        .message.user {
+            align-self: flex-end; background: var(--chat-user); color: white;
+            border-bottom-right-radius: 2px;
+        }
+        .message.ai {
+            align-self: flex-start; background: var(--chat-ai);
+            border: 1px solid var(--glass-border); border-bottom-left-radius: 2px;
+        }
+
+        .input-area {
+            position: relative; margin-top: auto;
+        }
+        .input-area textarea {
+            width: 100%; padding: 15px 50px 15px 20px; border-radius: 24px;
+            background: var(--glass-bg); color: var(--text-primary);
+            border: 1px solid var(--glass-border); resize: none;
+            min-height: 55px; max-height: 150px; backdrop-filter: blur(10px);
+        }
+        .input-area textarea:focus { outline: 1px solid var(--accent-color); }
+        .send-btn {
+            position: absolute; right: 10px; bottom: 10px;
+            background: var(--accent-color); color: white;
+            width: 35px; height: 35px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* === TOOLS DASHBOARD === */
+        #tools-view {
+            display: none; padding: 30px; overflow-y: auto; height: 100%;
+        }
+        .tools-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;
+        }
+        .tool-card {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            padding: 20px; border-radius: 16px; backdrop-filter: blur(10px);
+        }
+        .tool-card h3 { margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .tool-input {
+            width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 8px;
+            background: rgba(0,0,0,0.1); border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+        }
+        .tool-btn {
+            background: var(--accent-color); color: white; padding: 10px 15px;
+            border-radius: 8px; width: 100%; font-weight: bold; margin-bottom: 10px;
+        }
+        .tool-output {
+            background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;
+            margin-top: 15px; min-height: 100px; display: none; font-family: monospace;
+            border: 1px solid var(--glass-border); word-wrap: break-word;
+        }
+        
+        .image-preview, .video-preview {
+            width: 100%; height: 150px; background: rgba(0,0,0,0.3);
+            border-radius: 8px; display: flex; justify-content: center; align-items: center;
+            margin-top: 10px; border: 1px dashed var(--glass-border);
+        }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .typing { display: flex; gap: 5px; padding: 15px; align-items: center; }
+        .dot { width: 8px; height: 8px; background: var(--text-secondary); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { position: absolute; left: -260px; z-index: 100; height: 100%; }
+            .sidebar.active { left: 0; }
+            .mobile-menu-btn { display: block !important; }
+        }
+        .mobile-menu-btn { display: none; background: transparent; color: var(--text-primary); font-size: 20px; margin-right: 15px; }
+
+    </style>
+</head>
+<body>
+
+    <div id="auth-modal">
+        <div class="auth-card">
+            <h2><i class="fa-solid fa-cube text-accent"></i> AI SuperBox</h2>
+            <p style="margin-bottom: 20px; color: var(--text-secondary);">Sign in to continue</p>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button class="auth-btn" onclick="login()">Login / Sign Up</button>
+        </div>
+    </div>
+
+    <div id="app-container" style="display:none;">
+        
+        <aside class="sidebar" id="sidebar">
+            <div class="logo-area">
+                <i class="fa-solid fa-cube" style="color: var(--accent-color);"></i> AI SuperBox
+            </div>
+            
+            <button class="new-chat-btn" onclick="newChat()">
+                <i class="fa-solid fa-plus"></i> New Chat
+            </button>
+
+            <div class="model-selector">
+                <select id="ai-model">
+                    <option value="NovaMind AI">NovaMind AI</option>
+                    <option value="Orion GPT">Orion GPT</option>
+                    <option value="DeepCore AI">DeepCore AI</option>
+                    <option value="Zenith Brain">Zenith Brain</option>
+                    <option value="HyperThink AI">HyperThink AI</option>
+                </select>
+            </div>
+
+            <h4 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Chat History</h4>
+            <div class="chat-history" id="chat-history">
+                </div>
+        </aside>
+
+        <main class="main-content">
+            <header>
+                <div style="display: flex; align-items: center;">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="tabs">
+                        <button class="active" onclick="switchTab('chat')" id="tab-chat">AI Chat</button>
+                        <button onclick="switchTab('tools')" id="tab-tools">AI Tools Dashboard</button>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                        <i class="fa-solid fa-moon" id="theme-icon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <section id="chat-view">
+                <div class="chat-box" id="chat-box">
+                    <div class="message ai">
+                        Hello! I am AI SuperBox. How can I assist you today? Select a model from the sidebar and let's get started.
+                    </div>
+                </div>
+                <div class="input-area">
+                    <textarea id="chat-input" placeholder="Message AI SuperBox..." rows="1" onkeypress="handleEnter(event)"></textarea>
+                    <button class="send-btn" onclick="sendMessage()">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </section>
+
+            <section id="tools-view">
+                <div class="tools-grid">
+                    
+                    <div class="tool-card">
+                        <h3><i class="fa-solid fa-code"></i> Code & Script Writer</h3>
+                        <select class="tool-input" id="code-lang">
+                            <option value="HTML/CSS/JS">HTML/CSS/JS</option>
+                            <option value="Python">Python</option>
+                            <option value="C++">C++</option>
+                            <option value="Java">Java</option>
+                        </select>
+                        <input type="text" id="code-prompt" class="tool-input" placeholder="What do you want to build?">
+                        <button class="tool-btn" onclick="generateCode()">Generate Code</button>
+                        <div class="tool-output" id="code-output"></div>
+                        <button class="tool-btn" style="background: #10b981; display:none;" id="copy-code-btn" onclick="copyCode()"><i class="fa-regular fa-copy"></i> Copy Code</button>
+                    </div>
+
+                    <div class="tool-card">
+                        <h3><i class="fa-regular fa-image"></i> Image Creator & Editor</h3>
+                        <input type="text" id="image-prompt" class="tool-input" placeholder="Describe the image...">
+                        <input type="file" id="image-upload" class="tool-input" accept="image/*" style="padding: 5px;">
+                        <button class="tool-btn" onclick="generateImage()">Generate Image</button>
+                        <div class="image-preview" id="image-preview">
+                            <span style="color: var(--text-secondary)"><i class="fa-solid fa-camera"></i> Preview Area</span>
+                        </div>
+                    </div>
+
+                    <div class="tool-card">
+                        <h3><i class="fa-solid fa-music"></i> Audio Text-to-Speech</h3>
+                        <textarea id="audio-prompt" class="tool-input" placeholder="Enter text to convert to speech..." rows="3"></textarea>
+                        <select class="tool-input" id="audio-voice">
+                            <option value="Male">Male Voice (Deep)</option>
+                            <option value="Female">Female Voice (Natural)</option>
+                        </select>
+                        <button class="tool-btn" onclick="generateAudio()">Generate MP3</button>
+                        <div class="tool-output" id="audio-output" style="text-align: center;">
+                            <audio controls style="width: 100%; margin-top: 10px; display: none;" id="audio-player"></audio>
+                            <span id="audio-status">No audio generated yet.</span>
+                        </div>
+                    </div>
+
+                    <div class="tool-card">
+                        <h3><i class="fa-solid fa-video"></i> Video Generation</h3>
+                        <input type="text" id="video-prompt" class="tool-input" placeholder="Describe the video scene...">
+                        <button class="tool-btn" onclick="generateVideo()">Generate Video</button>
+                        <div class="video-preview" id="video-preview">
+                            <span style="color: var(--text-secondary)"><i class="fa-solid fa-film"></i> Video Player Preview</span>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // State
+        let chatHistory = [];
+        
+        // Login Simulation
+        function login() {
+            const user = document.getElementById('username').value;
+            if(user.trim() === '') {
+                alert("Please enter a username.");
+                return;
+            }
+            document.getElementById('auth-modal').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+            loadHistory();
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const icon = document.getElementById('theme-icon');
+            if(document.body.classList.contains('light-mode')) {
+                icon.classList.replace('fa-moon', 'fa-sun');
+            } else {
+                icon.classList.replace('fa-sun', 'fa-moon');
+            }
+        }
+
+        // Mobile Sidebar Toggle
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        // Tab Switching
+        function switchTab(tab) {
+            const chatView = document.getElementById('chat-view');
+            const toolsView = document.getElementById('tools-view');
+            const tabChat = document.getElementById('tab-chat');
+            const tabTools = document.getElementById('tab-tools');
+
+            if(tab === 'chat') {
+                chatView.style.display = 'flex';
+                toolsView.style.display = 'none';
+                tabChat.classList.add('active');
+                tabTools.classList.remove('active');
+            } else {
+                chatView.style.display = 'none';
+                toolsView.style.display = 'block';
+                tabTools.classList.add('active');
+                tabChat.classList.remove('active');
+            }
+        }
+
+        // New Chat
+        function newChat() {
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = `
+                <div class="message ai">
+                    New conversation started. How can I help?
+                </div>
+            `;
+            document.getElementById('chat-input').value = '';
+        }
+
+        // Chat System
+        function handleEnter(e) {
+            if(e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if(!message) return;
+
+            const chatBox = document.getElementById('chat-box');
+            
+            // User Message
+            const userDiv = document.createElement('div');
+            userDiv.className = 'message user';
+            userDiv.innerText = message;
+            chatBox.appendChild(userDiv);
+
+            input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Save to history
+            saveToHistory(message);
+
+            // Typing Indicator
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message ai typing';
+            typingDiv.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            typingDiv.id = 'typing-indicator';
+            chatBox.appendChild(typingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Simulate AI Response
+            const model = document.getElementById('ai-model').value;
+            setTimeout(() => {
+                document.getElementById('typing-indicator').remove();
+                const aiDiv = document.createElement('div');
+                aiDiv.className = 'message ai';
+                
+                // Generic mock responses
+                const responses = [
+                    `[${model}] That's a great question! Based on my analysis, here is what you need to know...`,
+                    `[${model}] I can certainly help with that. Let's break it down step-by-step.`,
+                    `[${model}] Interesting perspective. Here is a creative solution to your problem.`,
+                    `[${model}] As an AI, I process this by looking at patterns. Here is the result.`
+                ];
+                aiDiv.innerText = responses[Math.floor(Math.random() * responses.length)];
+                
+                chatBox.appendChild(aiDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 1500);
+        }
+
+        // History Management
+        function saveToHistory(msg) {
+            const shortMsg = msg.length > 25 ? msg.substring(0, 25) + '...' : msg;
+            if(!chatHistory.includes(shortMsg)) {
+                chatHistory.unshift(shortMsg);
+                if(chatHistory.length > 10) chatHistory.pop();
+                loadHistory();
+            }
+        }
+
+        function loadHistory() {
+            const historyContainer = document.getElementById('chat-history');
+            historyContainer.innerHTML = '';
+            chatHistory.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `<i class="fa-regular fa-message"></i> ${item}`;
+                historyContainer.appendChild(div);
+            });
+        }
+
+        // === TOOLS FUNCTIONALITY (MOCK) ===
+
+        // 1. Code Generator
+        function generateCode() {
+            const prompt = document.getElementById('code-prompt').value;
+            const lang = document.getElementById('code-lang').value;
+            const out = document.getElementById('code-output');
+            const btn = document.getElementById('copy-code-btn');
+            
+            if(!prompt) { alert('Enter a code prompt'); return; }
+
+            out.style.display = 'block';
+            out.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating code...';
+            btn.style.display = 'none';
+
+            setTimeout(() => {
+                let mockCode = "";
+                if(lang.includes('HTML')) {
+                    mockCode = `&lt;!-- Generated by AI SuperBox --&gt;\n&lt;div class="container"&gt;\n  &lt;h1&gt;${prompt}&lt;/h1&gt;\n&lt;/div&gt;`;
+                } else if(lang === 'Python') {
+                    mockCode = `# Generated by AI SuperBox\ndef execute_task():\n    print("${prompt}")\n\nexecute_task()`;
+                } else {
+                    mockCode = `// AI Code implementation for: ${prompt}\nfunction init() {\n   console.log("Success");\n}`;
+                }
+                out.innerHTML = `<pre><code>${mockCode}</code></pre>`;
+                btn.style.display = 'block';
+            }, 2000);
+        }
+
+        function copyCode() {
+            const out = document.getElementById('code-output').innerText;
+            navigator.clipboard.writeText(out);
+            alert("Code copied to clipboard!");
+        }
+
+        // 2. Image Generator
+        function generateImage() {
+            const prompt = document.getElementById('image-prompt').value;
+            const preview = document.getElementById('image-preview');
+            if(!prompt) { alert('Enter an image description'); return; }
+
+            preview.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI is rendering...';
+            
+            setTimeout(() => {
+                // Using a placeholder image service for demonstration
+                const randomId = Math.floor(Math.random() * 1000);
+                preview.innerHTML = `<img src="https://picsum.photos/seed/${randomId}/300/150" style="width:100%; height:100%; border-radius:8px; object-fit:cover;" alt="AI Generated">
+                <a href="#" style="position:absolute; bottom:10px; right:10px; background:var(--accent-color); color:white; padding:5px 10px; border-radius:5px; text-decoration:none; font-size:12px;">Download</a>`;
+                preview.style.position = 'relative';
+            }, 2500);
+        }
+
+        // 3. Audio Generator
+        function generateAudio() {
+            const prompt = document.getElementById('audio-prompt').value;
+            const status = document.getElementById('audio-status');
+            const player = document.getElementById('audio-player');
+            
+            if(!prompt) { alert('Enter text to synthesize'); return; }
+
+            status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Synthesizing voice...';
+            player.style.display = 'none';
+
+            setTimeout(() => {
+                status.innerHTML = 'Audio Generated Successfully.';
+                // Placeholder audio
+                player.src = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
+                player.style.display = 'block';
+            }, 2000);
+        }
+
+        // 4. Video Generator
+        function generateVideo() {
+            const prompt = document.getElementById('video-prompt').value;
+            const preview = document.getElementById('video-preview');
+            
+            if(!prompt) { alert('Enter a video description'); return; }
+
+            preview.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating frames...';
+
+            setTimeout(() => {
+                preview.innerHTML = `
+                <div style="position:relative; width:100%; height:100%;">
+                    <img src="https://picsum.photos/300/150?blur=2" style="width:100%; height:100%; border-radius:8px; object-fit:cover;">
+                    <i class="fa-solid fa-play" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:30px; color:white; text-shadow:0 2px 4px rgba(0,0,0,0.5); cursor:pointer;"></i>
+                </div>`;
+            }, 3000);
+        }
+
+        // Initialize empty state
+        document.getElementById('chat-history').innerHTML = '<div style="color:var(--text-secondary); font-size:12px;">No recent chats.</div>';
+
+    </script>
+</body>
+</html>
